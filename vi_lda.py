@@ -30,9 +30,9 @@ class vi_lda(object):
 	""" 
 	def _update_phi(self):
 	    self.Elog_beta = (sps.digamma(self.current_lambda) - 
-	    				  sps.digamma(self.current_lambda.sum(axis=1)[:, np.newaxis])).astype(np.float32)
+	    		      sps.digamma(self.current_lambda.sum(axis=1)[:, None])).astype(np.float32)
 	    self.Elog_theta = (sps.digamma(self.current_gamma) - 
-	    				  sps.digamma(self.current_gamma.sum(axis=1)[:, np.newaxis])).astype(np.float32)
+	    		       sps.digamma(self.current_gamma.sum(axis=1)[:, None])).astype(np.float32)
 	 
 	    self.Elog_beta_ = (self.Elog_beta.T[None, :, :] * self.X[:, :, None]).astype(np.float32)
 	    self.Elog_theta_ = (self.Elog_theta[:, None, :] * self.X[:, :, None]).astype(np.float32)
