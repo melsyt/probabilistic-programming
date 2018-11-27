@@ -11,10 +11,10 @@ class vi_lda(object):
 
 		# K = number of topics
 		self.K = K
-		self._initialize_hyperparams()
+		self.initialize_hyperparams()
 
 
-	def _initialize_hyperparams(self):
+	def initialize_hyperparams(self):
 	    N, M = self.X.shape
 
 	    # initialize variational parameters
@@ -28,53 +28,52 @@ class vi_lda(object):
 	Update the variational parameters phi, gamma, and lambda individually,
 	while holding the other variational parameters fixed. 
 	""" 
-	def _update_phi(self):
+	def update_phi(self):
 	    self.Elog_beta = (sps.digamma(self.current_lambda) - 
-	    		      sps.digamma(self.current_lambda.sum(axis=1)[:, None])).astype(np.float32)
+			      sps.digamma(self.current_lambda.sum(axis=1)[:, None])).astype(np.float32)
 	    self.Elog_theta = (sps.digamma(self.current_gamma) - 
-	    		       sps.digamma(self.current_gamma.sum(axis=1)[:, None])).astype(np.float32)
-	 
+			       sps.digamma(self.current_gamma.sum(axis=1)[:, None])).astype(np.float32)
+
 	    self.Elog_beta_ = (self.Elog_beta.T[None, :, :] * self.X[:, :, None]).astype(np.float32)
 	    self.Elog_theta_ = (self.Elog_theta[:, None, :] * self.X[:, :, None]).astype(np.float32)
-	    
+
 	    self.phi = np.exp(self.Elog_beta_ + self.Elog_theta_).astype(np.float32)
 	    self.current_phi = (self.phi/self.phi.sum(axis=2, keepdims=True)).astype(np.float32)
 
 
-	def _update_gamma(self):
+	def update_gamma(self):
 		self.current_gamma = np.add(self.alpha[None, :], self.current_phi.sum(axis=1))
-    
 
-	def _update_lambda(self):
 
+	def update_lambda(self):
 		for k in range(self.K):
 			update = np.multiply(self.X, self.current_phi[:, :, k]).sum(axis=0)
 			self.current_lambda[k] = self.eta + update
-	    
 
-    # calculate the evidence lower bound (ELBO)
-	def _expected_log_joint(self):
+
+	# calculate the evidence lower bound (ELBO)
+	def expected_log_joint(self):
 	    beta = np.outer((self.eta-1), self.Elog_beta.sum(axis=1)).sum(1).sum()
 	    theta = np.outer((self.alpha-1), self.Elog_theta.sum(axis=1)).sum(1).sum()
 	    phi_theta = np.einsum('ijk,ik', self.current_phi, self.Elog_theta).sum()
 	    phi_beta = np.einsum('ijk, kj', self.current_phi, self.Elog_beta).sum()
-	    
+
 	    self.exp_log_joint = beta + theta + phi_theta + phi_beta
 
 
-	def _entropy(self):
+	def entropy(self):
 	    log_q_beta = (sps.loggamma(self.current_lambda.sum(axis=1)) - \
-	                  sps.loggamma(self.current_lambda).sum(axis=1) + \
-	                  ((self.current_lambda-1)*self.Elog_beta).sum(axis=1)).sum(axis=0)
-	    
+			  sps.loggamma(self.current_lambda).sum(axis=1) + \
+			  ((self.current_lambda-1)*self.Elog_beta).sum(axis=1)).sum(axis=0)
+
 	    log_q_theta = (sps.loggamma(self.current_gamma.sum(axis=1)) - \
-	                   sps.loggamma(self.current_gamma).sum(axis=1) + \
-	                   ((self.current_gamma-1)*self.Elog_theta).sum(axis=1)).sum(axis=0)
-	    
+			   sps.loggamma(self.current_gamma).sum(axis=1) + \
+			   ((self.current_gamma-1)*self.Elog_theta).sum(axis=1)).sum(axis=0)
+
 	    log_q_z = -np.einsum('ijk, ijk', self.current_phi, np.log(self.current_phi))
-	    
+
 	    self.entropy = log_q_beta + log_q_theta + log_q_z
-	    
+
 
 	def compute_elbo(self):
 	    self.elbo = self.exp_log_joint - self.entropy
@@ -89,11 +88,11 @@ class vi_lda(object):
 		for i in range(iters):
 			if i%interval == 0:
 			    print("at iteration " + str(i) + ", latest delta: " + str(elbo_delta))
-			self._update_phi()
-			self._update_gamma()
-			self._update_lambda()
-			self._expected_log_joint()
-			self._entropy()
+			self.update_phi()
+			self.update_gamma()
+			self.update_lambda()
+			self.expected_log_joint()
+			self.entropy()
 			self.compute_elbo()
 			elbo_delta = self.elbo - elbo
 			self.elbos.append(self.elbo)
